@@ -180,6 +180,125 @@ h1 {
     resize: vertical;
 }
 
+.chat-warning {
+    min-height: 1.1rem;
+    margin: 0;
+    color: #fca5a5;
+    font-size: 0.85rem;
+}
+
+.shop-panel {
+    margin-top: 1rem;
+    border-top: 1px solid var(--card-border);
+    padding-top: 0.9rem;
+    text-align: left;
+}
+
+.shop-panel h3 {
+    margin: 0 0 0.4rem;
+}
+
+.shop-balance {
+    margin: 0 0 0.7rem;
+    color: #fcd34d;
+    font-weight: 600;
+}
+
+.shop-items {
+    display: grid;
+    gap: 0.55rem;
+}
+
+.shop-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.6rem;
+    border: 1px solid var(--card-border);
+    border-radius: 10px;
+    padding: 0.55rem 0.65rem;
+    background: rgba(15, 23, 42, 0.5);
+}
+
+.shop-item-name {
+    font-size: 0.92rem;
+}
+
+.shop-item button {
+    border: 0;
+    border-radius: 999px;
+    padding: 0.35rem 0.7rem;
+    background: #22c55e;
+    color: #052e16;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.shop-item button:disabled {
+    background: #334155;
+    color: #94a3b8;
+    cursor: default;
+}
+
+.admin-panel {
+    margin-top: 1rem;
+    border-top: 1px solid var(--card-border);
+    padding-top: 0.9rem;
+    text-align: left;
+}
+
+.admin-login-form,
+.admin-controls {
+    display: grid;
+    gap: 0.45rem;
+}
+
+.admin-login-form input,
+.admin-controls input {
+    width: 100%;
+    background: rgba(15, 23, 42, 0.65);
+    color: var(--text);
+    border: 1px solid var(--card-border);
+    border-radius: 8px;
+    padding: 0.5rem 0.6rem;
+    font: inherit;
+}
+
+.admin-login-form button,
+.admin-controls button {
+    border: 0;
+    border-radius: 999px;
+    padding: 0.45rem 0.7rem;
+    background: #f59e0b;
+    color: #451a03;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.admin-status {
+    margin: 0.45rem 0 0.7rem;
+    color: #fdba74;
+    font-size: 0.85rem;
+}
+
+.hidden {
+    display: none;
+}
+
+.admin-toast {
+    position: fixed;
+    right: 1rem;
+    bottom: 1rem;
+    max-width: 320px;
+    background: rgba(15, 23, 42, 0.95);
+    border: 1px solid #f59e0b;
+    color: #fde68a;
+    border-radius: 12px;
+    padding: 0.7rem 0.85rem;
+    box-shadow: 0 8px 28px rgba(2, 6, 23, 0.45);
+    z-index: 999;
+}
+
 @media (max-width: 860px) {
     .app-layout {
         grid-template-columns: 1fr;

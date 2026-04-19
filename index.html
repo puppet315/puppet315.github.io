@@ -24,6 +24,7 @@
             <div id="end-screen" class="overlay-card" aria-live="polite">
                 <h2>Game Over</h2>
                 <p id="final-score">Score: 0</p>
+                <p id="final-coins">Coins this run: 0</p>
                 <button id="restart-btn" class="primary-btn">Play Again</button>
             </div>
         </section>
@@ -36,9 +37,48 @@
             <form id="chat-form" class="chat-form">
                 <input id="chat-name" type="text" maxlength="20" placeholder="Your name" required>
                 <textarea id="chat-text" maxlength="200" placeholder="What do you want to say?" required></textarea>
+                <p id="chat-warning" class="chat-warning" aria-live="polite"></p>
                 <button type="submit" class="primary-btn">Send</button>
             </form>
+
+            <section class="shop-panel" aria-label="Bird skin shop">
+                <h3>Skin Shop</h3>
+                <p class="shop-balance">Coins: <span id="total-coins">0</span></p>
+                <div id="shop-items" class="shop-items"></div>
+            </section>
+
+            <section class="admin-panel" aria-label="Admin tools">
+                <h3>Account</h3>
+                <form id="account-register-form" class="admin-login-form">
+                    <input id="register-user" type="text" maxlength="24" placeholder="New username" required>
+                    <input id="register-pass" type="password" maxlength="64" placeholder="New password" required>
+                    <button type="submit">Create Account</button>
+                </form>
+                <form id="account-login-form" class="admin-login-form">
+                    <input id="login-user" type="text" maxlength="24" placeholder="Username" required>
+                    <input id="login-pass" type="password" maxlength="64" placeholder="Password" required>
+                    <button type="submit">Login</button>
+                </form>
+                <p id="account-status" class="admin-status">Not logged in.</p>
+
+                <h3>Admin Menu</h3>
+                <p id="admin-status" class="admin-status">Admin tools are locked (owner/admin required).</p>
+
+                <div id="admin-controls" class="admin-controls hidden">
+                    <input id="admin-target-user" type="text" maxlength="24" placeholder="Target username">
+                    <input id="admin-coins-amount" type="number" placeholder="Coins to add">
+                    <button id="admin-grant-coins" type="button">Give Coins</button>
+                    <input id="admin-coins-set" type="number" placeholder="Set coins to exact amount">
+                    <button id="admin-set-coins" type="button">Set Coins</button>
+                    <input id="admin-highscore-value" type="number" placeholder="Set high score">
+                    <button id="admin-set-highscore" type="button">Set High Score</button>
+                    <button id="admin-toggle-chat" type="button">Disable Chat User</button>
+                    <button id="admin-allow-admin" type="button">Allow as Admin</button>
+                    <button id="admin-remove-admin" type="button">Remove Admin</button>
+                </div>
+            </section>
         </aside>
     </div>
+    <div id="admin-toast" class="admin-toast hidden" role="status" aria-live="assertive"></div>
 </body>
 </html>
