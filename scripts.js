@@ -41,7 +41,7 @@ let pipeTimer;
 let startScreen;
 let endScreen;
 let finalScore;
-let chatNode;
+const CHAT_TOPIC = "hhs/flappybird/global-chat-v1";
 
 window.onload = function () {
     board = document.getElementById("board");
@@ -225,29 +225,53 @@ function setupChatRoom() {
     const textInput = document.getElementById("chat-text");
     const chatStatus = document.getElementById("chat-status");
 
-    if (typeof Gun === "undefined") {
+    if (typeof mqtt === "undefined") {
         chatStatus.textContent = "Live chat unavailable right now. Messages will stay local.";
         setupLocalChat(chatForm, chatMessages, nameInput, textInput);
         return;
     }
 
-    const gun = Gun([
-        "https://gun-manhattan.herokuapp.com/gun",
-        "https://gun-us.herokuapp.com/gun",
-    ]);
+    const clientId = `flappy-${Math.random().toString(16).slice(2)}`;
+    const brokerUrl = "wss://test.mosquitto.org:8081";
+    const client = mqtt.connect(brokerUrl, {
+        clientId,
+        clean: true,
+        connectTimeout: 4000,
+        reconnectPeriod: 2000,
+    });
 
-    chatNode = gun.get("hhs-flappy-bird").get("global-chat");
+    const seenPayloads = new Set();
 
-    chatStatus.textContent = "Connected to live chat.";
+    client.on("connect", () => {
+        chatStatus.textContent = "Connected to live chat.";
+        client.subscribe(CHAT_TOPIC, (err) => {
+            if (err) {
+                chatStatus.textContent = "Connected, but failed to join room. Messages may not sync for everyone.";
+            }
+        });
+    });
 
-    const seenIds = new Set();
-    chatNode.map().on((data, id) => {
-        if (!data || !data.name || !data.message || seenIds.has(id)) {
-            return;
+    client.on("message", (_, payload) => {
+        try {
+            const text = payload.toString();
+            if (seenPayloads.has(text)) {
+                return;
+            }
+
+            seenPayloads.add(text);
+            const data = JSON.parse(text);
+            if (!data || !data.name || !data.message) {
+                return;
+            }
+
+            appendChatMessage(chatMessages, data.name, data.message);
+        } catch (_) {
+            // ignore malformed messages from public topic
         }
+    });
 
-        seenIds.add(id);
-        appendChatMessage(chatMessages, data.name, data.message);
+    client.on("error", () => {
+        chatStatus.textContent = "Live chat connection issue. Messages may not sync for everyone.";
     });
 
     chatForm.addEventListener("submit", (event) => {
@@ -260,12 +284,16 @@ function setupChatRoom() {
             return;
         }
 
-        chatNode.set({
+        const payload = JSON.stringify({
+            id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
             name,
             message,
             createdAt: Date.now(),
         });
 
+        seenPayloads.add(payload);
+        client.publish(CHAT_TOPIC, payload);
+        appendChatMessage(chatMessages, name, message);
         textInput.value = "";
     });
 }
