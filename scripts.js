@@ -1,24 +1,24 @@
-
-//board
+// board
 let board;
 let boardWidth = 360;
 let boardHeight = 640;
 let context;
 
-//bird
+// bird
 let birdWidth = 34; // width/height ratio = 408/228 = 17/12
 let birdHeight = 24;
-let birdX = boardHeight/8;
-let birdY = boardHeight/2;
+let birdX = boardHeight / 8;
+let birdY = boardHeight / 2;
 let birdImg;
 
 let bird = {
     x: birdX,
     y: birdY,
     width: birdWidth,
-    height: birdHeight
-}
-//pipes
+    height: birdHeight,
+};
+
+// pipes
 let pipeArray = [];
 let pipeWidth = 64; // width/height ratio = 384/3072 = 1/8
 let pipeHeight = 512;
@@ -28,153 +28,288 @@ let pipeY = 0;
 let topPipeImg;
 let bottomPipeImg;
 
-//physics
+// physics
 let velocityX = -2; // speed of the pipes moving left
 let velocityY = 0; // speed of the bird moving up and down
 let gravity = 0.4; // gravity pulling the bird down
 
 let gameOver = false;
+let gameStarted = false;
 let score = 0;
+let pipeTimer;
 
+let startScreen;
+let endScreen;
+let finalScore;
+let chatNode;
 
-window.onload = function() { // executes after the page is loaded
-    board = document.getElementById("board"); // reference to the canvas element
-    board.height = boardHeight; // set the height of the canvas
-    board.width = boardWidth; // set the width of the canvas
-    context = board.getContext("2d"); // used for drawing on the board
+window.onload = function () {
+    board = document.getElementById("board");
+    board.height = boardHeight;
+    board.width = boardWidth;
+    context = board.getContext("2d");
 
+    startScreen = document.getElementById("start-screen");
+    endScreen = document.getElementById("end-screen");
+    finalScore = document.getElementById("final-score");
 
-//draw flappy bird
+    const startBtn = document.getElementById("start-btn");
+    const restartBtn = document.getElementById("restart-btn");
 
+    startBtn.addEventListener("click", startGame);
+    restartBtn.addEventListener("click", restartGame);
 
-    //load the bird image
+    setupChatRoom();
+
     birdImg = new Image();
     birdImg.src = "./flappybird.png";
-    birdImg.onload = function() { // executes after the image is loaded
-        context.drawImage(birdImg, bird.x, bird.y, bird.width, bird.height); // draw the bird image on the canvas
-    }
-    
+    birdImg.onload = function () {
+        context.drawImage(birdImg, bird.x, bird.y, bird.width, bird.height);
+    };
+
     topPipeImg = new Image();
     topPipeImg.src = "./toppipe.png";
     bottomPipeImg = new Image();
     bottomPipeImg.src = "./bottompipe.png";
 
-    requestAnimationFrame(update); // update the canvas
-    setInterval(placePipes, 1500); // place pipes every 1.5 seconds
-    document.addEventListener("keydown", moveBird); // listen for key presses to move the bird
-    document.addEventListener("click", moveBird); // listen for mouse clicks to move the bird
-}
-function update() {
-    requestAnimationFrame(update); // update the canvas
-    if (gameOver) {
-        return; // stop the game loop if the game is over
-    }
-    context.clearRect(0, 0, board.width, board.height); // clear the canvas
+    requestAnimationFrame(update);
+    document.addEventListener("keydown", moveBird);
+    document.addEventListener("click", moveBird);
+};
 
-    
-    //draw the bird
-    velocityY += gravity; // apply gravity to the bird's vertical velocity
-    bird.y = Math.max(bird.y + velocityY, 0); // update the bird's y position and prevent it from going above the canvas
-    context.drawImage(birdImg, bird.x, bird.y, bird.width, bird.height); // draw the bird image on the canvas
+function startGame() {
+    gameStarted = true;
+    gameOver = false;
+    startScreen.classList.remove("visible");
+    endScreen.classList.remove("visible");
+
+    if (pipeTimer) {
+        clearInterval(pipeTimer);
+    }
+    pipeTimer = setInterval(placePipes, 1500);
+}
+
+function restartGame() {
+    bird.y = birdY;
+    velocityY = 0;
+    pipeArray = [];
+    score = 0;
+    startGame();
+}
+
+function update() {
+    requestAnimationFrame(update);
+    context.clearRect(0, 0, board.width, board.height);
+
+    if (!gameStarted) {
+        context.drawImage(birdImg, bird.x, bird.y, bird.width, bird.height);
+        return;
+    }
+
+    if (gameOver) {
+        return;
+    }
+
+    // draw the bird
+    velocityY += gravity;
+    bird.y = Math.max(bird.y + velocityY, 0);
+    context.drawImage(birdImg, bird.x, bird.y, bird.width, bird.height);
 
     if (bird.y > board.height) {
-        gameOver = true; // end the game if the bird hits the bottom of the canvas
+        endGame();
     }
 
-    //draw the pipes
-    for(let i = 0; i < pipeArray.length; i++) {
+    // draw the pipes
+    for (let i = 0; i < pipeArray.length; i++) {
         let pipe = pipeArray[i];
-        pipe.x += velocityX; // move the pipe left
-        context.drawImage(pipe.img, pipe.x, pipe.y, pipe.width, pipe.height); // draw the pipe image on the canvas
+        pipe.x += velocityX;
+        context.drawImage(pipe.img, pipe.x, pipe.y, pipe.width, pipe.height);
 
         if (!pipe.passed && bird.x > pipe.x + pipe.width) {
-            score += 0.5; // increase the score by 0.5 for each pipe passed (top and bottom pipes count as one)
-            pipe.passed = true; // mark the pipe as passed
+            score += 0.5;
+            pipe.passed = true;
         }
 
-    
-
-
-
-        //check for collision with the bird
         if (detectCollision(bird, pipe)) {
-            gameOver = true;
+            endGame();
         }
-
     }
 
-    //clear pipes that have moved off the screen
     while (pipeArray.length > 0 && pipeArray[0].x < -pipeWidth) {
-        pipeArray.shift(); // remove the first pipe from the array
+        pipeArray.shift();
     }
 
-
-
-    //score
     context.fillStyle = "white";
     context.font = "45px sans-serif";
-    context.fillText(score, 5, 45); // display the score on the canvas
-
-    if (gameOver) {
-        context.fillText("Game Over!", 5, 90); // display game over message
-    }
+    context.fillText(score, 5, 45);
 }
+
+function endGame() {
+    gameOver = true;
+    clearInterval(pipeTimer);
+    finalScore.textContent = `Score: ${score}`;
+    endScreen.classList.add("visible");
+}
+
 function placePipes() {
-    if (gameOver) {
-        return; // stop placing pipes if the game is over
+    if (!gameStarted || gameOver) {
+        return;
     }
 
-    let randomPipeY = pipeY - pipeHeight/4 - Math.random() * (pipeHeight/2); // random y position for the top pipe
-    let openingspace = board.height/4; // space between the top and bottom pipes
-
+    let randomPipeY = pipeY - pipeHeight / 4 - Math.random() * (pipeHeight / 2);
+    let openingspace = board.height / 4;
 
     let topPipe = {
-        img : topPipeImg,
+        img: topPipeImg,
         x: pipeX,
         y: randomPipeY,
         width: pipeWidth,
         height: pipeHeight,
-        passed : false
+        passed: false,
     };
 
     let bottomPipe = {
-        img : bottomPipeImg,
+        img: bottomPipeImg,
         x: pipeX,
-        y: randomPipeY + pipeHeight + openingspace, // 100 is the gap between the pipes
+        y: randomPipeY + pipeHeight + openingspace,
         width: pipeWidth,
         height: pipeHeight,
-        passed : false
+        passed: false,
     };
-    
-    pipeArray.push(topPipe); // add the top pipe to the array
-    pipeArray.push(bottomPipe); // add the bottom pipe to the array
+
+    pipeArray.push(topPipe);
+    pipeArray.push(bottomPipe);
 }
 
-
 function moveBird(e) {
-    if (e.code == "Space" || e.code == "ArrowUp" || e.code == "ContextMenu" || e.type === "click") {
-        e.preventDefault(); // Prevents default context menu
-        //jump
-        velocityY = -6; // move the bird up
+    const isFlyAction =
+        e.code === "Space" ||
+        e.code === "ArrowUp" ||
+        e.code === "ContextMenu" ||
+        e.type === "click";
 
-    
-        // reset the game if it's over
-        if (gameOver) {
-            bird.y = birdY; // reset the bird's position
-            pipeArray = []; // clear the pipes
-            score = 0; // reset the score
-            gameOver = false; // reset the game over flag
-        }
+    if (!isFlyAction) {
+        return;
     }
+
+    if (isTypingTarget(e.target) || isTypingTarget(document.activeElement)) {
+        return;
+    }
+
+    const clickedInsideGame = e.type !== "click" || e.target.closest(".game-shell");
+    if (!clickedInsideGame) {
+        return;
+    }
+
+    e.preventDefault();
+
+    if (!gameStarted) {
+        startGame();
+    }
+
+    if (gameOver) {
+        restartGame();
+    }
+
+    velocityY = -6;
 }
 
 function detectCollision(a, b) {
-    return a.x < b.x + b.width &&
-           a.x + a.width > b.x &&
-           a.y < b.y + b.height &&
-           a.y + a.height > b.y;
+    return a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y;
 }
 
+function setupChatRoom() {
+    const chatForm = document.getElementById("chat-form");
+    const chatMessages = document.getElementById("chat-messages");
+    const nameInput = document.getElementById("chat-name");
+    const textInput = document.getElementById("chat-text");
+    const chatStatus = document.getElementById("chat-status");
 
+    if (typeof Gun === "undefined") {
+        chatStatus.textContent = "Live chat unavailable right now. Messages will stay local.";
+        setupLocalChat(chatForm, chatMessages, nameInput, textInput);
+        return;
+    }
 
+    const gun = Gun([
+        "https://gun-manhattan.herokuapp.com/gun",
+        "https://gun-us.herokuapp.com/gun",
+    ]);
 
+    chatNode = gun.get("hhs-flappy-bird").get("global-chat");
+
+    chatStatus.textContent = "Connected to live chat.";
+
+    const seenIds = new Set();
+    chatNode.map().on((data, id) => {
+        if (!data || !data.name || !data.message || seenIds.has(id)) {
+            return;
+        }
+
+        seenIds.add(id);
+        appendChatMessage(chatMessages, data.name, data.message);
+    });
+
+    chatForm.addEventListener("submit", (event) => {
+        event.preventDefault();
+
+        const name = nameInput.value.trim();
+        const message = textInput.value.trim();
+
+        if (!name || !message) {
+            return;
+        }
+
+        chatNode.set({
+            name,
+            message,
+            createdAt: Date.now(),
+        });
+
+        textInput.value = "";
+    });
+}
+
+function setupLocalChat(chatForm, chatMessages, nameInput, textInput) {
+    chatForm.addEventListener("submit", (event) => {
+        event.preventDefault();
+        const name = nameInput.value.trim();
+        const message = textInput.value.trim();
+
+        if (!name || !message) {
+            return;
+        }
+
+        appendChatMessage(chatMessages, name, message);
+        textInput.value = "";
+    });
+}
+
+function appendChatMessage(chatMessages, name, message) {
+    const messageRow = document.createElement("p");
+    messageRow.className = "chat-message";
+
+    const nameLabel = document.createElement("span");
+    nameLabel.className = "name";
+    nameLabel.textContent = `${name}:`;
+
+    const messageLabel = document.createElement("span");
+    messageLabel.textContent = message;
+
+    messageRow.appendChild(nameLabel);
+    messageRow.appendChild(messageLabel);
+    chatMessages.appendChild(messageRow);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+function isTypingTarget(target) {
+    if (!target || !(target instanceof HTMLElement)) {
+        return false;
+    }
+
+    return (
+        target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.isContentEditable
+    );
+}

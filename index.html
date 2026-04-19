@@ -6,17 +6,39 @@
     <title>Flappy Bird</title>
     <link rel="icon" type="image/png" href="jeffy_bird.png">
     <link rel="stylesheet" href="style.css">
-    <script src="scripts.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+    <script src="scripts.js" defer></script>
 </head>
 <body>
+    <h1>HHS Flappy Bird</h1>
+    <div class="app-layout">
+        <section class="game-shell">
+            <canvas id="board"></canvas>
 
-<h1 >HHS Flappy Bird</h1>
-  <hr>
-<canvas id="board"></canvas>
+            <div id="start-screen" class="overlay-card visible" aria-live="polite">
+                <h2>Ready to Fly?</h2>
+                <p>Press <strong>Space</strong>, <strong>Arrow Up</strong>, or click/tap to flap.</p>
+                <button id="start-btn" class="primary-btn">Start Game</button>
+            </div>
 
+            <div id="end-screen" class="overlay-card" aria-live="polite">
+                <h2>Game Over</h2>
+                <p id="final-score">Score: 0</p>
+                <button id="restart-btn" class="primary-btn">Play Again</button>
+            </div>
+        </section>
 
-
-  
-  
+        <aside class="chat-panel" aria-label="Game chat room">
+            <h2>Chat Room</h2>
+            <p class="chat-subtitle">Say hi while you wait for your next high score.</p>
+            <p id="chat-status" class="chat-status">Connecting to live chat…</p>
+            <div id="chat-messages" class="chat-messages" role="log" aria-live="polite"></div>
+            <form id="chat-form" class="chat-form">
+                <input id="chat-name" type="text" maxlength="20" placeholder="Your name" required>
+                <textarea id="chat-text" maxlength="200" placeholder="What do you want to say?" required></textarea>
+                <button type="submit" class="primary-btn">Send</button>
+            </form>
+        </aside>
+    </div>
 </body>
 </html>
