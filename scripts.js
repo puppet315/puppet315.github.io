@@ -52,7 +52,8 @@ window.onload = function() { // executes after the page is loaded
     birdImg.src = "./flappybird.png";
     birdImg.onload = function() { // executes after the image is loaded
         context.drawImage(birdImg, bird.x, bird.y, bird.width, bird.height); // draw the bird image on the canvas
-}
+    }
+    
     topPipeImg = new Image();
     topPipeImg.src = "./toppipe.png";
     bottomPipeImg = new Image();
