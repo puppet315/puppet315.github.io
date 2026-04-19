@@ -49,14 +49,14 @@ window.onload = function() { // executes after the page is loaded
 
     //load the bird image
     birdImg = new Image();
-    birdImg.src = "./images/flappybird.png";
+    birdImg.src = "./flappybird.png";
     birdImg.onload = function() { // executes after the image is loaded
         context.drawImage(birdImg, bird.x, bird.y, bird.width, bird.height); // draw the bird image on the canvas
 }
     topPipeImg = new Image();
-    topPipeImg.src = "./images/toppipe.png";
+    topPipeImg.src = "./toppipe.png";
     bottomPipeImg = new Image();
-    bottomPipeImg.src = "./images/bottompipe.png";
+    bottomPipeImg.src = "./bottompipe.png";
 
     requestAnimationFrame(update); // update the canvas
     setInterval(placePipes, 1500); // place pipes every 1.5 seconds
