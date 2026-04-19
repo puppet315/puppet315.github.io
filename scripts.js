@@ -39,7 +39,7 @@ let gameOver = false;
 let gameStarted = false;
 let score = 0;
 let runCoins = 0;
-let totalCoins = Number(localStorage.getItem("flappy-total-coins") || 0);
+let totalCoins = 0;
 let pipeTimer;
 
 let startScreen;
@@ -48,6 +48,7 @@ let finalScore;
 let finalCoins;
 let totalCoinsLabel;
 let shopItems;
+let leaderboardList;
 let mqttClient;
 let currentUser = null;
 let activePlayerName = "";
@@ -61,17 +62,15 @@ const ACCOUNT_TOPIC = "hhs/flappybird/account-v1";
 const OWNER_USERNAME = "owner";
 const OWNER_PASSWORD = "owner-keep-private";
 const COIN_RADIUS = 10;
-const SKIN_STORAGE_KEY = "flappy-selected-skin";
-const OWNED_SKINS_KEY = "flappy-owned-skins";
 const SKINS = [
     { id: "classic", name: "Classic", cost: 0, filter: "none", image: "./flappybird.png" },
-    { id: "gold", name: "Golden", cost: 25, filter: "hue-rotate(25deg) saturate(170%) brightness(1.1)", image: "./flappybird.png" },
-    { id: "neon", name: "Neon", cost: 60, filter: "hue-rotate(180deg) saturate(190%) brightness(1.05)", image: "./flappybird.png" },
-    { id: "shadow", name: "Shadow", cost: 90, filter: "grayscale(1) contrast(1.3) brightness(0.85)", image: "./flappybird.png" },
-    { id: "jeffy2", name: "Jeffy Bird 2", cost: 140, filter: "none", image: "./jeffy_bird_2.png" },
+    { id: "green", name: "Green", cost: 25, filter: "hue-rotate(25deg) saturate(170%) brightness(1.1)", image: "./flappybird.png" },
+    { id: "ice", name: "Ice", cost: 60, filter: "hue-rotate(180deg) saturate(190%) brightness(1.05)", image: "./flappybird.png" },
+    { id: "white", name: "White", cost: 90, filter: "grayscale(1) contrast(1.3) brightness(0.85)", image: "./flappybird.png" },
+    { id: "jeffy2", name: "Jeffy Bird", cost: 140, filter: "none", image: "./jeffy_bird_2.png" },
 ];
-let selectedSkinId = localStorage.getItem(SKIN_STORAGE_KEY) || "classic";
-let ownedSkinIds = loadOwnedSkins();
+let selectedSkinId = "classic";
+let ownedSkinIds = ["classic"];
 const CUSS_WORDS = [
     "ass",
     "asshole",
@@ -84,6 +83,22 @@ const CUSS_WORDS = [
     "fucker",
     "fucking",
     "shit",
+    "motherfucker",
+    "cunt",
+    "nigger",
+    "nigga",
+    "clanker",
+    "cp",
+    "child",
+    "porn",
+    "Minor",
+    "kid",
+    "Pedophile",
+    "pedo",
+    "incest",
+    "predator",
+    "rape",
+    "rapist",
 ];
 const PROFANITY_PATTERNS = [
     /\bf+u+c+k+(?:e+r+|i+n+g+|e+d+|s+)?\b/gi,
@@ -112,6 +127,7 @@ window.onload = function () {
     finalCoins = document.getElementById("final-coins");
     totalCoinsLabel = document.getElementById("total-coins");
     shopItems = document.getElementById("shop-items");
+    leaderboardList = document.getElementById("leaderboard-list");
 
     const startBtn = document.getElementById("start-btn");
     const restartBtn = document.getElementById("restart-btn");
@@ -121,6 +137,8 @@ window.onload = function () {
 
     setupShop();
     ensureOwnerAccount();
+    renderLeaderboard();
+    setupShopModal();
     setupChatRoom();
     setupAdminPanel();
     preloadBirdImages();
@@ -138,6 +156,10 @@ window.onload = function () {
 };
 
 function startGame() {
+    if (currentUser && accounts[currentUser]?.isBanned) {
+        showToast("Banned accounts cannot play the game.");
+        return;
+    }
     gameStarted = true;
     gameOver = false;
     startScreen.classList.remove("visible");
@@ -162,6 +184,16 @@ function restartGame() {
 function update() {
     requestAnimationFrame(update);
     context.clearRect(0, 0, board.width, board.height);
+
+    if (currentUser && accounts[currentUser]?.isBanned) {
+        gameStarted = false;
+        gameOver = true;
+        clearInterval(pipeTimer);
+        context.fillStyle = "white";
+        context.font = "22px sans-serif";
+        context.fillText("Banned accounts cannot play.", 20, board.height / 2);
+        return;
+    }
 
     if (!gameStarted) {
         birdImg = getCurrentBirdImage();
@@ -218,6 +250,12 @@ function update() {
                     playerProfiles[activePlayerName] = { coins: 0, highScore: 0 };
                 }
                 playerProfiles[activePlayerName].coins = totalCoins;
+                if (accounts[activePlayerName]) {
+                    accounts[activePlayerName].coins = totalCoins;
+                    saveAccounts();
+                    renderLeaderboard();
+                    publishAccountUpdate(activePlayerName);
+                }
                 if (mqttClient) {
                     mqttClient.publish(PROFILE_TOPIC, JSON.stringify({ user: activePlayerName, ...playerProfiles[activePlayerName] }));
                 }
@@ -375,6 +413,22 @@ function setupShop() {
     renderShop();
 }
 
+function setupShopModal() {
+    const modal = document.getElementById("shop-modal");
+    const openBtn = document.getElementById("open-shop-btn");
+    const closeBtn = document.getElementById("close-shop-btn");
+
+    openBtn.addEventListener("click", () => {
+        modal.classList.remove("hidden");
+        modal.setAttribute("aria-hidden", "false");
+    });
+
+    closeBtn.addEventListener("click", () => {
+        modal.classList.add("hidden");
+        modal.setAttribute("aria-hidden", "true");
+    });
+}
+
 function renderShop() {
     shopItems.innerHTML = "";
 
@@ -393,6 +447,9 @@ function renderShop() {
         if (isSelected) {
             button.textContent = "Selected";
             button.disabled = true;
+        } else if (!currentUser) {
+            button.textContent = "Login Required";
+            button.disabled = true;
         } else if (isOwned) {
             button.textContent = "Equip";
             button.addEventListener("click", () => equipSkin(skin.id));
@@ -409,6 +466,9 @@ function renderShop() {
 }
 
 function buySkin(skinId) {
+    if (!currentUser) {
+        return;
+    }
     const skin = SKINS.find((item) => item.id === skinId);
     if (!skin || totalCoins < skin.cost) {
         return;
@@ -418,19 +478,20 @@ function buySkin(skinId) {
     ownedSkinIds.push(skin.id);
     selectedSkinId = skin.id;
     saveCoins();
-    saveOwnedSkins();
-    saveSelectedSkin();
     updateCoinDisplays();
     renderShop();
 }
 
 function equipSkin(skinId) {
+    if (!currentUser) {
+        return;
+    }
     if (!ownedSkinIds.includes(skinId)) {
         return;
     }
 
     selectedSkinId = skinId;
-    saveSelectedSkin();
+    saveAccountProgress();
     renderShop();
 }
 
@@ -447,25 +508,20 @@ function updateCoinDisplays() {
 }
 
 function saveCoins() {
-    localStorage.setItem("flappy-total-coins", String(totalCoins));
+    saveAccountProgress();
     renderShop();
 }
 
-function loadOwnedSkins() {
-    try {
-        const parsed = JSON.parse(localStorage.getItem(OWNED_SKINS_KEY) || "[\"classic\"]");
-        return Array.isArray(parsed) ? parsed : ["classic"];
-    } catch (_) {
-        return ["classic"];
+function saveAccountProgress() {
+    if (!currentUser || !accounts[currentUser]) {
+        return;
     }
-}
-
-function saveOwnedSkins() {
-    localStorage.setItem(OWNED_SKINS_KEY, JSON.stringify(ownedSkinIds));
-}
-
-function saveSelectedSkin() {
-    localStorage.setItem(SKIN_STORAGE_KEY, selectedSkinId);
+    accounts[currentUser].coins = totalCoins;
+    accounts[currentUser].ownedSkins = [...new Set(ownedSkinIds)];
+    accounts[currentUser].selectedSkin = selectedSkinId;
+    saveAccounts();
+    renderLeaderboard();
+    publishAccountUpdate(currentUser);
 }
 
 function setupAdminPanel() {
@@ -488,6 +544,13 @@ function setupAdminPanel() {
     const toggleChatBtn = document.getElementById("admin-toggle-chat");
     const allowAdminBtn = document.getElementById("admin-allow-admin");
     const removeAdminBtn = document.getElementById("admin-remove-admin");
+    const banUserBtn = document.getElementById("admin-ban-user");
+    const unbanUserBtn = document.getElementById("admin-unban-user");
+    const resetAccountBtn = document.getElementById("admin-reset-account");
+    const viewUserBtn = document.getElementById("admin-view-user");
+    const broadcastInput = document.getElementById("admin-broadcast-text");
+    const broadcastBtn = document.getElementById("admin-broadcast-btn");
+    const deleteUserBtn = document.getElementById("admin-delete-user");
 
     registerForm.addEventListener("submit", (event) => {
         event.preventDefault();
@@ -498,9 +561,19 @@ function setupAdminPanel() {
             return;
         }
 
-        accounts[user] = { passwordHash: hashPassword(pass), isAdmin: false, isOwner: false };
+        accounts[user] = {
+            passwordHash: hashPassword(pass),
+            isAdmin: false,
+            isOwner: false,
+            isBanned: false,
+            coins: 0,
+            highScore: 0,
+            ownedSkins: ["classic"],
+            selectedSkin: "classic",
+        };
         saveAccounts();
         publishAccountUpdate(user);
+        renderLeaderboard();
         accountStatus.textContent = `Account ${user} created.`;
     });
 
@@ -600,6 +673,75 @@ function setupAdminPanel() {
         });
     });
 
+    banUserBtn.addEventListener("click", () => {
+        if (!ensureOwnerAccess(adminStatus, adminControls)) return;
+        const targetUser = targetUserInput.value.trim().toLowerCase();
+        if (!targetUser) return;
+        publishAdminAction({
+            type: "ban-user",
+            targetUser,
+            by: currentUser,
+        });
+    });
+
+    unbanUserBtn.addEventListener("click", () => {
+        if (!ensureOwnerAccess(adminStatus, adminControls)) return;
+        const targetUser = targetUserInput.value.trim().toLowerCase();
+        if (!targetUser) return;
+        publishAdminAction({
+            type: "unban-user",
+            targetUser,
+            by: currentUser,
+        });
+    });
+
+    deleteUserBtn.addEventListener("click", () => {
+        if (!ensureOwnerAccess(adminStatus, adminControls)) return;
+        const targetUser = targetUserInput.value.trim().toLowerCase();
+        if (!targetUser) return;
+        publishAdminAction({
+            type: "delete-account",
+            targetUser,
+            by: currentUser,
+        });
+    });
+
+    resetAccountBtn.addEventListener("click", () => {
+        if (!ensureAdminAccess(adminStatus, adminControls)) return;
+        const targetUser = targetUserInput.value.trim().toLowerCase();
+        if (!targetUser) return;
+        publishAdminAction({
+            type: "reset-account",
+            targetUser,
+            by: currentUser,
+        });
+    });
+
+    viewUserBtn.addEventListener("click", () => {
+        if (!ensureAdminAccess(adminStatus, adminControls)) return;
+        const targetUser = targetUserInput.value.trim().toLowerCase();
+        if (!targetUser || !accounts[targetUser]) {
+            adminStatus.textContent = "User not found.";
+            return;
+        }
+
+        const account = accounts[targetUser];
+        adminStatus.textContent = `@${targetUser} | Coins: ${account.coins || 0}, High Score: ${account.highScore || 0}, Admin: ${account.isAdmin ? "Yes" : "No"}, Banned: ${account.isBanned ? "Yes" : "No"}`;
+    });
+
+    broadcastBtn.addEventListener("click", () => {
+        if (!ensureAdminAccess(adminStatus, adminControls)) return;
+        const message = broadcastInput.value.trim();
+        if (!message) return;
+        publishAdminAction({
+            type: "broadcast-message",
+            targetUser: "__all__",
+            message,
+            by: currentUser,
+        });
+        broadcastInput.value = "";
+    });
+
     updateAdminVisibility(adminControls, adminStatus);
 }
 
@@ -634,20 +776,41 @@ function applyAdminAction(action) {
     if (!action || !action.type || !action.targetUser) {
         return;
     }
+    if (action.type === "broadcast-message") {
+        if (action.message) {
+            showAnnouncement(action.message, action.by);
+        }
+        return;
+    }
 
     const target = action.targetUser.toLowerCase();
     if (!playerProfiles[target]) {
         playerProfiles[target] = { coins: 0, highScore: 0 };
     }
+    if (!accounts[target]) {
+        accounts[target] = {
+            passwordHash: "",
+            isAdmin: false,
+            isOwner: false,
+            isBanned: false,
+            coins: 0,
+            highScore: 0,
+            ownedSkins: ["classic"],
+            selectedSkin: "classic",
+        };
+    }
 
     if (action.type === "grant-coins") {
         playerProfiles[target].coins += Number(action.amount) || 0;
+        accounts[target].coins = playerProfiles[target].coins;
         notifyUser(target, `Your coins were updated by ${action.by}.`);
     } else if (action.type === "set-coins") {
         playerProfiles[target].coins = Math.max(0, Number(action.amount) || 0);
+        accounts[target].coins = playerProfiles[target].coins;
         notifyUser(target, `Your coins were set by ${action.by}.`);
     } else if (action.type === "set-high-score") {
         playerProfiles[target].highScore = Number(action.score) || 0;
+        accounts[target].highScore = playerProfiles[target].highScore;
         notifyUser(target, `Your high score was changed by ${action.by}.`);
     } else if (action.type === "toggle-chat") {
         if (action.mute) mutedUsers.add(target);
@@ -655,7 +818,16 @@ function applyAdminAction(action) {
         notifyUser(target, action.mute ? "You were blocked from chat by an admin." : "Your chat access was restored.");
     } else if (action.type === "allow-admin") {
         if (!accounts[target]) {
-            accounts[target] = { passwordHash: "", isAdmin: false, isOwner: false };
+            accounts[target] = {
+                passwordHash: "",
+                isAdmin: false,
+                isOwner: false,
+                isBanned: false,
+                coins: 0,
+                highScore: 0,
+                ownedSkins: ["classic"],
+                selectedSkin: "classic",
+            };
         }
         accounts[target].isAdmin = true;
         saveAccounts();
@@ -668,15 +840,68 @@ function applyAdminAction(action) {
             publishAccountUpdate(target);
             notifyUser(target, "Your admin privileges were removed.");
         }
+    } else if (action.type === "ban-user") {
+        if (accounts[target] && !accounts[target].isOwner) {
+            accounts[target].isBanned = true;
+            mutedUsers.add(target);
+            saveAccounts();
+            publishAccountUpdate(target);
+            notifyUser(target, "Your account was banned by the owner.");
+        }
+    } else if (action.type === "unban-user") {
+        if (accounts[target] && !accounts[target].isOwner) {
+            accounts[target].isBanned = false;
+            mutedUsers.delete(target);
+            saveAccounts();
+            publishAccountUpdate(target);
+            notifyUser(target, "Your account was unbanned by the owner.");
+        }
+    } else if (action.type === "reset-account") {
+        if (accounts[target]) {
+            playerProfiles[target].coins = 0;
+            playerProfiles[target].highScore = 0;
+            accounts[target].coins = 0;
+            accounts[target].highScore = 0;
+            accounts[target].ownedSkins = ["classic"];
+            accounts[target].selectedSkin = "classic";
+            mutedUsers.delete(target);
+            saveAccounts();
+            publishAccountUpdate(target);
+            notifyUser(target, "Your account progress was reset by an admin.");
+        }
+    } else if (action.type === "delete-account") {
+        if (accounts[target] && !accounts[target].isOwner) {
+            delete accounts[target];
+            delete playerProfiles[target];
+            mutedUsers.delete(target);
+            saveAccounts();
+            renderLeaderboard();
+            if (mqttClient) {
+                mqttClient.publish(ACCOUNT_TOPIC, JSON.stringify({ user: target, deleted: true }));
+            }
+            if (currentUser === target) {
+                currentUser = null;
+                activePlayerName = "";
+                totalCoins = 0;
+                ownedSkinIds = ["classic"];
+                selectedSkinId = "classic";
+                updateCoinDisplays();
+                renderShop();
+                showToast("Your account was deleted by the owner.");
+            }
+        }
     }
 
     if (target === activePlayerName.toLowerCase()) {
-        totalCoins = playerProfiles[target].coins;
+        totalCoins = accounts[target].coins;
         saveCoins();
         updateCoinDisplays();
     }
 
+    saveAccounts();
+    renderLeaderboard();
     if (mqttClient) {
+        publishAccountUpdate(target);
         mqttClient.publish(PROFILE_TOPIC, JSON.stringify({ user: target, ...playerProfiles[target] }));
     }
 }
@@ -691,6 +916,22 @@ function applyProfileUpdate(data) {
         coins: Number(data.coins) || 0,
         highScore: Number(data.highScore) || 0,
     };
+    if (!accounts[user]) {
+        accounts[user] = {
+            passwordHash: "",
+            isAdmin: false,
+            isOwner: false,
+            isBanned: false,
+            coins: 0,
+            highScore: 0,
+            ownedSkins: ["classic"],
+            selectedSkin: "classic",
+        };
+    }
+    accounts[user].coins = playerProfiles[user].coins;
+    accounts[user].highScore = playerProfiles[user].highScore;
+    saveAccounts();
+    renderLeaderboard();
 }
 
 function updatePlayerHighScore(scoreValue) {
@@ -702,9 +943,25 @@ function updatePlayerHighScore(scoreValue) {
     if (!playerProfiles[user]) {
         playerProfiles[user] = { coins: totalCoins, highScore: 0 };
     }
+    if (!accounts[user]) {
+        accounts[user] = {
+            passwordHash: "",
+            isAdmin: false,
+            isOwner: false,
+            isBanned: false,
+            coins: totalCoins,
+            highScore: 0,
+            ownedSkins: ["classic"],
+            selectedSkin: "classic",
+        };
+    }
 
     if (scoreValue > (playerProfiles[user].highScore || 0)) {
         playerProfiles[user].highScore = scoreValue;
+        accounts[user].highScore = scoreValue;
+        saveAccounts();
+        renderLeaderboard();
+        publishAccountUpdate(user);
         if (mqttClient) {
             mqttClient.publish(PROFILE_TOPIC, JSON.stringify({ user, ...playerProfiles[user] }));
         }
@@ -713,16 +970,21 @@ function updatePlayerHighScore(scoreValue) {
 
 function syncPlayerProfile(user) {
     if (!playerProfiles[user]) {
-        playerProfiles[user] = { coins: totalCoins, highScore: 0 };
+        const accountCoins = accounts[user]?.coins ?? totalCoins;
+        const accountHigh = accounts[user]?.highScore ?? 0;
+        playerProfiles[user] = { coins: accountCoins, highScore: accountHigh };
         if (mqttClient) {
             mqttClient.publish(PROFILE_TOPIC, JSON.stringify({ user, ...playerProfiles[user] }));
         }
     }
 
     activePlayerName = user;
-    totalCoins = playerProfiles[user].coins;
+    totalCoins = accounts[user]?.coins ?? 0;
+    ownedSkinIds = [...(accounts[user]?.ownedSkins || ["classic"])];
+    selectedSkinId = accounts[user]?.selectedSkin || "classic";
     updateCoinDisplays();
     renderShop();
+    renderLeaderboard();
 }
 
 function updateAdminVisibility(adminControls, adminStatus) {
@@ -751,9 +1013,17 @@ function showToast(message) {
     window.setTimeout(() => toast.classList.add("hidden"), 4500);
 }
 
+function showAnnouncement(message, by) {
+    const announcer = by ? `Announcement from ${by}: ` : "Announcement: ";
+    showToast(`${announcer}${message}`);
+}
+
 function authenticate(user, password) {
     const account = accounts[user];
     if (!account) {
+        return false;
+    }
+    if (account.isBanned) {
         return false;
     }
     return account.passwordHash === hashPassword(password);
@@ -765,6 +1035,11 @@ function ensureOwnerAccount() {
             passwordHash: hashPassword(OWNER_PASSWORD),
             isAdmin: true,
             isOwner: true,
+            isBanned: false,
+            coins: 0,
+            highScore: 0,
+            ownedSkins: ["classic"],
+            selectedSkin: "classic",
         };
         saveAccounts();
     }
@@ -781,14 +1056,56 @@ function applyAccountUpdate(data) {
     if (!data || !data.user) {
         return;
     }
+    if (data.deleted) {
+        delete accounts[data.user];
+        saveAccounts();
+        renderLeaderboard();
+        if (currentUser === data.user) {
+            currentUser = null;
+            activePlayerName = "";
+            totalCoins = 0;
+            ownedSkinIds = ["classic"];
+            selectedSkinId = "classic";
+            renderShop();
+            updateCoinDisplays();
+            showToast("Your account was deleted by the owner.");
+        }
+        return;
+    }
     accounts[data.user] = {
         passwordHash: data.passwordHash || "",
         isAdmin: Boolean(data.isAdmin),
         isOwner: Boolean(data.isOwner),
+        isBanned: Boolean(data.isBanned),
+        coins: Number(data.coins) || 0,
+        highScore: Number(data.highScore) || 0,
+        ownedSkins: Array.isArray(data.ownedSkins) ? data.ownedSkins : ["classic"],
+        selectedSkin: data.selectedSkin || "classic",
     };
     saveAccounts();
+    renderLeaderboard();
 
     if (currentUser && currentUser === data.user) {
+        if (accounts[data.user].isBanned) {
+            currentUser = null;
+            activePlayerName = "";
+            totalCoins = 0;
+            ownedSkinIds = ["classic"];
+            selectedSkinId = "classic";
+            renderShop();
+            updateCoinDisplays();
+            showToast("Your account was banned by the owner.");
+            updateAdminVisibility(
+                document.getElementById("admin-controls"),
+                document.getElementById("admin-status")
+            );
+            return;
+        }
+        totalCoins = accounts[data.user].coins;
+        ownedSkinIds = [...accounts[data.user].ownedSkins];
+        selectedSkinId = accounts[data.user].selectedSkin;
+        renderShop();
+        updateCoinDisplays();
         updateAdminVisibility(
             document.getElementById("admin-controls"),
             document.getElementById("admin-status")
@@ -798,7 +1115,20 @@ function applyAccountUpdate(data) {
 
 function loadAccounts() {
     try {
-        return JSON.parse(localStorage.getItem("flappy-accounts") || "{}");
+        const raw = JSON.parse(localStorage.getItem("flappy-accounts") || "{}");
+        for (const [user, account] of Object.entries(raw)) {
+            raw[user] = {
+                passwordHash: account.passwordHash || "",
+                isAdmin: Boolean(account.isAdmin),
+                isOwner: Boolean(account.isOwner),
+                isBanned: Boolean(account.isBanned),
+                coins: Number(account.coins) || 0,
+                highScore: Number(account.highScore) || 0,
+                ownedSkins: Array.isArray(account.ownedSkins) ? account.ownedSkins : ["classic"],
+                selectedSkin: account.selectedSkin || "classic",
+            };
+        }
+        return raw;
     } catch (_) {
         return {};
     }
@@ -812,17 +1142,44 @@ function hashPassword(password) {
     return btoa(unescape(encodeURIComponent(password)));
 }
 
+function renderLeaderboard() {
+    if (!leaderboardList) {
+        return;
+    }
+
+    const rows = Object.entries(accounts)
+        .filter(([, account]) => account.passwordHash && !account.isBanned)
+        .sort((a, b) => {
+            const scoreDiff = (b[1].highScore || 0) - (a[1].highScore || 0);
+            if (scoreDiff !== 0) return scoreDiff;
+            return (b[1].coins || 0) - (a[1].coins || 0);
+        })
+        .slice(0, 10);
+
+    leaderboardList.innerHTML = "";
+    const header = document.createElement("div");
+    header.className = "leaderboard-row header";
+    header.innerHTML = "<span>User</span><span>High Score</span><span>Coins</span>";
+    leaderboardList.appendChild(header);
+
+    for (const [user, account] of rows) {
+        const row = document.createElement("div");
+        row.className = "leaderboard-row";
+        row.innerHTML = `<span>${user}</span><span>${account.highScore || 0}</span><span>${account.coins || 0}</span>`;
+        leaderboardList.appendChild(row);
+    }
+}
+
 function setupChatRoom() {
     const chatForm = document.getElementById("chat-form");
     const chatMessages = document.getElementById("chat-messages");
-    const nameInput = document.getElementById("chat-name");
     const textInput = document.getElementById("chat-text");
     const chatStatus = document.getElementById("chat-status");
     const chatWarning = document.getElementById("chat-warning");
 
     if (typeof mqtt === "undefined") {
         chatStatus.textContent = "Live chat unavailable right now. Messages will stay local.";
-        setupLocalChat(chatForm, chatMessages, nameInput, textInput);
+        setupLocalChat(chatForm, chatMessages, textInput);
         return;
     }
 
@@ -881,16 +1238,20 @@ function setupChatRoom() {
     chatForm.addEventListener("submit", (event) => {
         event.preventDefault();
 
-        const name = nameInput.value.trim();
         const message = textInput.value.trim();
         chatWarning.textContent = "";
-        activePlayerName = name;
 
-        if (!name || !message) {
+        if (!currentUser || !message) {
+            chatWarning.textContent = "You must log in to use chat.";
             return;
         }
-        syncPlayerProfile(name.toLowerCase());
-        if (mutedUsers.has(name.toLowerCase())) {
+        if (accounts[currentUser]?.isBanned) {
+            chatWarning.textContent = "This account is banned.";
+            return;
+        }
+
+        syncPlayerProfile(currentUser);
+        if (mutedUsers.has(currentUser.toLowerCase())) {
             chatWarning.textContent = "You are currently blocked from chat.";
             return;
         }
@@ -904,32 +1265,35 @@ function setupChatRoom() {
         const cleanedMessage = profanityResult.text;
         const payload = JSON.stringify({
             id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
-            name,
+            name: currentUser,
             message: cleanedMessage,
             createdAt: Date.now(),
         });
 
         seenPayloads.add(`${CHAT_TOPIC}:${payload}`);
         mqttClient.publish(CHAT_TOPIC, payload);
-        appendChatMessage(chatMessages, name, cleanedMessage);
+        appendChatMessage(chatMessages, currentUser, cleanedMessage);
         textInput.value = "";
     });
 }
 
-function setupLocalChat(chatForm, chatMessages, nameInput, textInput) {
+function setupLocalChat(chatForm, chatMessages, textInput) {
     const chatWarning = document.getElementById("chat-warning");
     chatForm.addEventListener("submit", (event) => {
         event.preventDefault();
-        const name = nameInput.value.trim();
         const message = textInput.value.trim();
         chatWarning.textContent = "";
-        activePlayerName = name;
 
-        if (!name || !message) {
+        if (!currentUser || !message) {
+            chatWarning.textContent = "You must log in to use chat.";
             return;
         }
-        syncPlayerProfile(name.toLowerCase());
-        if (mutedUsers.has(name.toLowerCase())) {
+        if (accounts[currentUser]?.isBanned) {
+            chatWarning.textContent = "This account is banned.";
+            return;
+        }
+        syncPlayerProfile(currentUser);
+        if (mutedUsers.has(currentUser.toLowerCase())) {
             chatWarning.textContent = "You are currently blocked from chat.";
             return;
         }
@@ -940,7 +1304,7 @@ function setupLocalChat(chatForm, chatMessages, nameInput, textInput) {
             return;
         }
 
-        appendChatMessage(chatMessages, name, profanityResult.text);
+        appendChatMessage(chatMessages, currentUser, profanityResult.text);
         textInput.value = "";
     });
 }

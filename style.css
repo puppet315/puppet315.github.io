@@ -1,12 +1,12 @@
 :root {
-    --bg: #0f172a;
-    --bg-accent: #1e293b;
-    --card: rgba(15, 23, 42, 0.78);
+    --bg: #05070f;
+    --bg-accent: #111827;
+    --card: rgba(9, 12, 22, 0.86);
     --card-border: rgba(148, 163, 184, 0.2);
     --text: #e2e8f0;
     --muted: #94a3b8;
-    --primary: #38bdf8;
-    --primary-hover: #0ea5e9;
+    --primary: #f59e0b;
+    --primary-hover: #fbbf24;
 }
 
 * {
@@ -22,7 +22,10 @@ body {
 body {
     font-family: "Inter", "Segoe UI", Tahoma, sans-serif;
     color: var(--text);
-    background: radial-gradient(circle at top, #1d4ed8 0%, var(--bg) 45%);
+    background:
+        radial-gradient(circle at 15% 10%, rgba(245, 158, 11, 0.24), transparent 30%),
+        radial-gradient(circle at 85% 0%, rgba(236, 72, 153, 0.2), transparent 34%),
+        radial-gradient(circle at top, #1b1f34 0%, var(--bg) 45%);
     padding: 1.5rem;
 }
 
@@ -30,14 +33,16 @@ h1 {
     margin: 0 0 1rem;
     text-align: center;
     font-size: clamp(1.8rem, 2.6vw, 2.5rem);
-    letter-spacing: 0.02em;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #f8fafc;
 }
 
 .app-layout {
     max-width: 980px;
     margin: 0 auto;
     display: grid;
-    grid-template-columns: minmax(320px, 380px) minmax(280px, 1fr);
+    grid-template-columns: 390px minmax(300px, 1fr);
     gap: 1.25rem;
     align-items: start;
 }
@@ -54,11 +59,13 @@ h1 {
 .game-shell {
     position: relative;
     padding: 0.75rem;
+    width: 390px;
+    min-width: 390px;
+    justify-self: center;
 }
 
 #board {
-    width: 100%;
-    max-width: 360px;
+    width: 360px;
     height: auto;
     display: block;
     margin: 0 auto;
@@ -117,6 +124,23 @@ h1 {
     min-height: 640px;
     display: flex;
     flex-direction: column;
+    gap: 0.75rem;
+}
+
+.lounge-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.8rem;
+    margin-top: -0.2rem;
+}
+
+.luxury-tag {
+    margin: 0;
+    color: #fcd34d;
+    font-size: 0.82rem;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
 }
 
 .chat-panel h2 {
@@ -194,6 +218,37 @@ h1 {
     text-align: left;
 }
 
+.panel-card {
+    margin-top: 0.4rem;
+    border: 1px solid rgba(245, 158, 11, 0.22);
+    border-radius: 12px;
+    background: rgba(2, 6, 23, 0.28);
+    padding: 0.8rem;
+}
+
+.panel-card h3 {
+    margin: 0 0 0.5rem;
+    letter-spacing: 0.01em;
+}
+
+.menu-card {
+    border: 1px solid rgba(148, 163, 184, 0.18);
+    border-radius: 12px;
+    background: rgba(2, 6, 23, 0.33);
+    padding: 0.55rem 0.7rem;
+}
+
+.menu-card summary {
+    cursor: pointer;
+    font-weight: 700;
+    color: #f8fafc;
+    margin-bottom: 0.55rem;
+}
+
+.menu-card[open] summary {
+    color: #fcd34d;
+}
+
 .shop-panel h3 {
     margin: 0 0 0.4rem;
 }
@@ -238,6 +293,26 @@ h1 {
     background: #334155;
     color: #94a3b8;
     cursor: default;
+}
+
+.leaderboard-list {
+    display: grid;
+    gap: 0.35rem;
+    font-size: 0.9rem;
+}
+
+.leaderboard-row {
+    display: grid;
+    grid-template-columns: 1.3fr 0.9fr 0.9fr;
+    gap: 0.45rem;
+    padding: 0.35rem 0.45rem;
+    border-radius: 8px;
+    background: rgba(15, 23, 42, 0.5);
+}
+
+.leaderboard-row.header {
+    font-weight: 700;
+    color: #cbd5e1;
 }
 
 .admin-panel {
@@ -299,9 +374,49 @@ h1 {
     z-index: 999;
 }
 
+.shop-modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(2, 6, 23, 0.72);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    z-index: 990;
+}
+
+.shop-modal.hidden {
+    display: none !important;
+}
+
+.shop-modal-card {
+    width: min(520px, 95vw);
+    border-radius: 16px;
+    border: 1px solid rgba(245, 158, 11, 0.35);
+    background: linear-gradient(165deg, rgba(15, 23, 42, 0.97), rgba(3, 7, 18, 0.97));
+    padding: 1rem;
+    box-shadow: 0 24px 60px rgba(2, 6, 23, 0.6);
+}
+
+.shop-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
 @media (max-width: 860px) {
     .app-layout {
         grid-template-columns: 1fr;
+    }
+
+    .game-shell {
+        width: 100%;
+        min-width: 0;
+    }
+
+    #board {
+        width: 100%;
+        max-width: 360px;
     }
 
     .chat-panel {

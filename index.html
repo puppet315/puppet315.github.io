@@ -30,24 +30,31 @@
         </section>
 
         <aside class="chat-panel" aria-label="Game chat room">
-            <h2>Chat Room</h2>
-            <p class="chat-subtitle">Say hi while you wait for your next high score.</p>
-            <p id="chat-status" class="chat-status">Connecting to live chat…</p>
-            <div id="chat-messages" class="chat-messages" role="log" aria-live="polite"></div>
-            <form id="chat-form" class="chat-form">
-                <input id="chat-name" type="text" maxlength="20" placeholder="Your name" required>
-                <textarea id="chat-text" maxlength="200" placeholder="What do you want to say?" required></textarea>
-                <p id="chat-warning" class="chat-warning" aria-live="polite"></p>
-                <button type="submit" class="primary-btn">Send</button>
-            </form>
+            <h2>Flappy Lounge</h2>
+            <div class="lounge-actions">
+                <p class="luxury-tag">Elite Arcade Experience</p>
+                <button id="open-shop-btn" class="primary-btn" type="button">Open Luxury Shop</button>
+            </div>
+            <details class="menu-card" open>
+                <summary>Live Chat</summary>
+                <p class="chat-subtitle">Say hi while you wait for your next high score.</p>
+                <p id="chat-status" class="chat-status">Connecting to live chat…</p>
+                <div id="chat-messages" class="chat-messages" role="log" aria-live="polite"></div>
+                <form id="chat-form" class="chat-form">
+                    <textarea id="chat-text" maxlength="200" placeholder="What do you want to say?" required></textarea>
+                    <p id="chat-warning" class="chat-warning" aria-live="polite"></p>
+                    <button type="submit" class="primary-btn">Send</button>
+                </form>
+            </details>
 
-            <section class="shop-panel" aria-label="Bird skin shop">
-                <h3>Skin Shop</h3>
-                <p class="shop-balance">Coins: <span id="total-coins">0</span></p>
-                <div id="shop-items" class="shop-items"></div>
-            </section>
+            <details class="menu-card">
+                <summary>Leaderboard</summary>
+                <div id="leaderboard-list" class="leaderboard-list"></div>
+            </details>
 
-            <section class="admin-panel" aria-label="Admin tools">
+            <details class="menu-card" open>
+                <summary>Account & Admin</summary>
+                <section class="admin-panel panel-card" aria-label="Admin tools">
                 <h3>Account</h3>
                 <form id="account-register-form" class="admin-login-form">
                     <input id="register-user" type="text" maxlength="24" placeholder="New username" required>
@@ -75,9 +82,28 @@
                     <button id="admin-toggle-chat" type="button">Disable Chat User</button>
                     <button id="admin-allow-admin" type="button">Allow as Admin</button>
                     <button id="admin-remove-admin" type="button">Remove Admin</button>
+                    <button id="admin-ban-user" type="button">Ban User</button>
+                    <button id="admin-unban-user" type="button">Unban User</button>
+                    <button id="admin-reset-account" type="button">Reset Account Progress</button>
+                    <button id="admin-view-user" type="button">View User Snapshot</button>
+                    <input id="admin-broadcast-text" type="text" maxlength="180" placeholder="Announcement to everyone">
+                    <button id="admin-broadcast-btn" type="button">Broadcast Announcement</button>
+                    <button id="admin-delete-user" type="button">Delete Account</button>
                 </div>
             </section>
+            </details>
         </aside>
+    </div>
+
+    <div id="shop-modal" class="shop-modal hidden" aria-hidden="true">
+        <section class="shop-modal-card" aria-label="Bird skin shop">
+            <div class="shop-header">
+                <h3>Luxury Skin Shop</h3>
+                <button id="close-shop-btn" class="primary-btn" type="button">Close</button>
+            </div>
+            <p class="shop-balance">Coins: <span id="total-coins">0</span></p>
+            <div id="shop-items" class="shop-items"></div>
+        </section>
     </div>
     <div id="admin-toast" class="admin-toast hidden" role="status" aria-live="assertive"></div>
 </body>
